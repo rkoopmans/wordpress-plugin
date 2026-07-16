@@ -22,6 +22,9 @@ class Tiny_Settings extends Tiny_WP_Base {
 
 	const DUMMY_SIZE = '_tiny_dummy';
 
+	/* Nonce action guarding the API key handed back by the signup callback. */
+	const CALLBACK_NONCE = 'tiny_register_callback';
+
 	private $sizes;
 	private $tinify_sizes;
 	private $compressor;
@@ -111,6 +114,8 @@ class Tiny_Settings extends Tiny_WP_Base {
 		if ( current_user_can( 'manage_options' ) ) {
 			$this->setup_incomplete_checks();
 		}
+
+		$this->maybe_handle_register_callback();
 
 		$field = self::get_prefixed_name( 'api_key' );
 		register_setting( 'tinify', $field );
@@ -867,6 +872,41 @@ class Tiny_Settings extends Tiny_WP_Base {
 		} else {
 			include __DIR__ . '/views/account-status-loading.php';
 		}
+	}
+
+	/**
+	 * Handles the return trip from the Tinify-hosted signup page.
+	 *
+	 * After registering, site-next redirects the user back to this settings
+	 * page with an `api_key` query parameter (guarded by the nonce we embedded
+	 * in the callback URL). We validate the key, store it, then redirect to a
+	 * clean URL so the key does not linger in the address bar or history.
+	 */
+	private function maybe_handle_register_callback() {
+		if ( ! isset( $_GET['api_key'], $_GET['_tiny_nonce'] ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$nonce = sanitize_text_field( wp_unslash( $_GET['_tiny_nonce'] ) );
+		if ( ! wp_verify_nonce( $nonce, self::CALLBACK_NONCE ) ) {
+			return;
+		}
+
+		$key = sanitize_text_field( wp_unslash( $_GET['api_key'] ) );
+		if ( ! empty( $key ) ) {
+			$status = Tiny_Compress::create( $key )->get_status();
+			if ( $status->ok ) {
+				update_option( self::get_prefixed_name( 'api_key_pending' ), false );
+				update_option( self::get_prefixed_name( 'api_key' ), $key );
+			}
+		}
+
+		wp_safe_redirect( $this->get_absolute_url() );
+		exit();
 	}
 
 	public function create_api_key() {

@@ -1,37 +1,37 @@
 <?php
-
-$user  = wp_get_current_user();
-$name  = trim( $user->user_firstname . ' ' . $user->user_lastname );
-$email = trim( $user->user_email );
-
 ?><div class="tiny-account-status wide" id="tiny-account-status" data-state="missing">
 	<div class="create">
 		<h4>
 		<?php
-			echo esc_html_e( 'Register new account', 'tiny-compress-images' );
+			esc_html_e( 'Register new account', 'tiny-compress-images' );
 		?>
 		</h4>
 
 		<p class="introduction" class="description">
 		<?php
 			esc_html_e(
-				'Provide your name and email address to start optimizing images.',
+				'Create your API key on the Tinify website to start optimizing images.',
 				'tiny-compress-images'
 			);
 			?>
 		</p>
 
-		<input type="text" id="tinypng_api_key_name" name="tinypng_api_key_name"
-			placeholder="Your full name" value="<?php echo esc_attr( $name ); ?>">
-
-		<input type="text" id="tinypng_api_key_email" name="tinypng_api_key_email"
-			placeholder="Your email address" value="<?php echo esc_attr( $email ); ?>">
-
-		<p class="message"></p>
-
-		<button class="button button-primary" data-tiny-action="create-key">
+		<?php
+			// MVP: key creation happens on the Tinify-hosted signup page (captcha
+			// lives there). We hand it a nonce-protected callback URL that points
+			// back to this settings page; after signup site-next redirects to it
+			// with an `api_key` query parameter, which we store as the API key.
+			// Pointing at the local site-next dev server for testing.
+			$callback   = add_query_arg(
+				'_tiny_nonce',
+				wp_create_nonce( self::CALLBACK_NONCE ),
+				$this->get_absolute_url()
+			);
+			$create_url = 'http://localhost/signup/app?callback=' . rawurlencode( $callback );
+		?>
+		<a class="button button-primary" href="<?php echo esc_url( $create_url ); ?>" rel="noopener">
 			<?php esc_html_e( 'Register Account', 'tiny-compress-images' ); ?>
-		</button>
+		</a>
 	</div>
 
 	<div class="update">
